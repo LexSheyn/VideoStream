@@ -70,16 +70,18 @@ void ClientPlayer::onReadyRead()
 {
     while (m_socket->hasPendingDatagrams())
     {
-        QByteArray* datagram = new QByteArray(m_socket->pendingDatagramSize(), Qt::Uninitialized);
+        QByteArray datagram(m_socket->pendingDatagramSize(), Qt::Uninitialized);
 
         QHostAddress address;
         quint16      port;
 
-        m_socket->readDatagram(datagram->data(), datagram->size(), &address, &port);
+        m_socket->readDatagram(datagram.data(), datagram.size(), &address, &port);
 
-        if (!datagram->isEmpty())
+        qDebug() << "ClientPlayer::onReadyRead: " << datagram.size();
+
+        if (!datagram.isEmpty())
         {
-            VideoPacketHeader* videoPacketHeader = (VideoPacketHeader*)datagram->data();
+            VideoPacketHeader* videoPacketHeader = (VideoPacketHeader*)datagram.data();
 
             const char* data = (char*)videoPacketHeader + sizeof(VideoPacketHeader);
 
@@ -111,7 +113,7 @@ void ClientPlayer::onReadyRead()
                 // TO DO: Create frame, map its buffer and copy data into it.
                 // How to resize the frame buffer?
 
-                QVideoFrame frame = QVideoFrame(m_frameData.size(), QSize(videoPacketHeader->width, videoPacketHeader->height), videoPacketHeader->bytesPerLine, videoPacketHeader->pixelFormat);
+                QVideoFrame frame(m_frameData.size(), QSize(videoPacketHeader->width, videoPacketHeader->height), videoPacketHeader->bytesPerLine, videoPacketHeader->pixelFormat);
 
                 if (frame.map(QAbstractVideoBuffer::WriteOnly))
                 {
@@ -125,7 +127,5 @@ void ClientPlayer::onReadyRead()
                 m_frameData.clear();
             }
         }
-
-        delete datagram;
     }
 }

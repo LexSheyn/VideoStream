@@ -49,25 +49,23 @@ void ServerPlayer::stop()
 
 void ServerPlayer::onVideoFrameProbed(const QVideoFrame &frame)
 {
-    QVideoFrame* frameCopy = new QVideoFrame(frame);
+    QVideoFrame frameCopy(frame);
 
-    if (!frameCopy->map(QAbstractVideoBuffer::ReadOnly))
+    if (!frameCopy.map(QAbstractVideoBuffer::ReadOnly))
     {
         return;
     }
 
-    QByteArray* datagram = new QByteArray((char*)frameCopy->bits(), frameCopy->mappedBytes());
+    QByteArray datagram((char*)frameCopy.bits(), frameCopy.mappedBytes());
 
-    const QVideoFrame::PixelFormat pixelFormat  = frameCopy->pixelFormat();
-    const qint32                   width        = frameCopy->width();
-    const qint32                   height       = frameCopy->height();
-    const qint32                   bytesPerLine = frameCopy->bytesPerLine();
+    const QVideoFrame::PixelFormat pixelFormat  = frameCopy.pixelFormat();
+    const qint32                   width        = frameCopy.width();
+    const qint32                   height       = frameCopy.height();
+    const qint32                   bytesPerLine = frameCopy.bytesPerLine();
 
-    frameCopy->unmap();
+    frameCopy.unmap();
 
-    delete frameCopy;
-
-    char* data = datagram->data();
+    char* data = datagram.data();
 
     qint32 byteCount = 0;
 
@@ -75,7 +73,9 @@ void ServerPlayer::onVideoFrameProbed(const QVideoFrame &frame)
 
     quint32 packetIndex = 0;
 
-    for (qint32 i = 0; i < datagram->size(); ++i)
+    const qint32 datagramSize = datagram.size();
+
+    for (qint32 i = 0; i < datagramSize; ++i)
     {
         buffer[byteCount + sizeof(VideoPacketHeader)] = data[i];
 
@@ -83,6 +83,13 @@ void ServerPlayer::onVideoFrameProbed(const QVideoFrame &frame)
 
         if (byteCount == VIDEO_DATA_SIZE)
         {
+            const bool b_lastPacket = ((i + 1) == datagramSize);
+
+            if (b_lastPacket)
+            {
+                qDebug() << "";
+            }
+
             VideoPacketHeader* videoPacketHeader = (VideoPacketHeader*)buffer;
 
             videoPacketHeader->frameIndex   = m_frameIndex;
@@ -92,7 +99,7 @@ void ServerPlayer::onVideoFrameProbed(const QVideoFrame &frame)
             videoPacketHeader->bytesPerLine = bytesPerLine;
             videoPacketHeader->packetIndex  = packetIndex;
             videoPacketHeader->byteCount    = byteCount;
-            videoPacketHeader->b_last       = false;
+            videoPacketHeader->b_last       = b_lastPacket;
 
             m_socket->writeDatagram(buffer, sizeof(VideoPacketHeader) + byteCount, VIDEO_ADDRESS, VIDEO_CLIENT_PORT);
 
@@ -119,8 +126,6 @@ void ServerPlayer::onVideoFrameProbed(const QVideoFrame &frame)
 
         m_socket->writeDatagram(buffer, sizeof(VideoPacketHeader) + byteCount, VIDEO_ADDRESS, VIDEO_CLIENT_PORT);
     }
-
-    delete datagram;
 
     m_frameIndex++;
 }
